@@ -15,6 +15,7 @@ export type UserProfileResult = {
     numberOfInvitesAvailable?: number;
     isBarmalini?: boolean;
     publicKey: string;
+    visitedDaysAgo: number;
 };
 
 export default class UserAPIHelper {

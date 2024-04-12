@@ -188,12 +188,20 @@ export default class UserRepository {
 
     logVisit(userId: number, date: Date): Promise<void> {
         // insert format: 2022-05-26 12:00:00.000
-        const dateToInsert = date.toISOString().replace(/T/, ' ').substring(0, 19) +
+        const dateToInsert = date.toISOString().replace('T', ' ').substring(0, 19) +
             '.' + date.getMilliseconds();
 
         return this.db.query(`
             insert ignore into activity_db.user_activity (user_id, visited_at) values (:user_id, :visited_at)
         `, {user_id: userId, visited_at: dateToInsert});
+    }
+
+    async getUserLastVisited(userId: number): Promise<Date | null> {
+        const res = await this.db.fetchOne(`
+            select max(visited_at) from activity_db.user_activity where user_id=:user_id`,
+            {user_id: userId});
+
+        return res['max(visited_at)'];
     }
 
     getLastActiveUsers(): Promise<UserRaw[]> {

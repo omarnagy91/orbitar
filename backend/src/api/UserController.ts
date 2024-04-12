@@ -139,6 +139,7 @@ export default class UserController {
             const trialProgress = await this.userManager.tryEndTrial(profileInfo.id, false);
             const numberOfPosts = await this.postManager.getPostsByUserTotal(profileInfo.id, '') || 0;
             const numberOfComments = await this.postManager.getUserCommentsTotal(profileInfo.id, '') || 0;
+            const visitedDaysAgo = await this.userManager.getUserVisitedDaysAgo(profileInfo.id);
 
             // if viewing own profile, get available invites number
             let numberOfInvitesAvailable = 0;
@@ -173,7 +174,8 @@ export default class UserController {
                 numberOfComments,
                 numberOfInvitesAvailable,
                 isBarmalini: this.userManager.isBarmaliniUser(profileInfo.id),
-                publicKey
+                publicKey,
+                visitedDaysAgo: visitedDaysAgo
             });
         } catch (error) {
             this.logger.error('Could not get user profile', {username});
