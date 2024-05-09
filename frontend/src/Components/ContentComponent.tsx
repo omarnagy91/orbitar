@@ -651,6 +651,20 @@ function ZoomComponent(props: ZoomComponentProps) {
     const defaultTranslateY = (window.innerHeight - props.height * defaultScale) / 2;
     useHotkeys('esc', props.onExit);
 
+    useEffect(() => {
+        const handleBack = (event: PopStateEvent) => props.onExit();
+        if (!window.history.state.popupOpen) {
+            window.history.pushState({popupOpen: true}, '');
+        }
+        window.addEventListener('popstate', handleBack);
+        return () => {
+            window.removeEventListener('popstate', handleBack);
+            if (window.history.state && window.history.state.popupOpen) {
+                window.history.back();
+            }
+        };
+    }, []);
+
     return (
         <div className={overlayStyles.overlay}
             onClick={(e) => {
