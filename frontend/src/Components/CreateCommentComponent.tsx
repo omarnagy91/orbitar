@@ -11,7 +11,6 @@ import {ReactComponent as ExpandIcon} from '../Assets/expand.svg';
 import {ReactComponent as LinkIcon} from '../Assets/link.svg';
 import {ReactComponent as QuoteIcon} from '../Assets/quote.svg';
 import {ReactComponent as SendIcon} from '../Assets/send.svg';
-import {ReactComponent as MailIcon} from '../Assets/mail-secure.svg';
 import ContentComponent from './ContentComponent';
 import classNames from 'classnames';
 import MediaUploader from './MediaUploader';
@@ -155,7 +154,7 @@ export default function CreateCommentComponent(props: CreateCommentProps) {
         if ((e.ctrlKey || e.metaKey) && key === 'KeyB') applyTag('b');
         if ((e.ctrlKey || e.metaKey) && key === 'KeyI') applyTag('i');
         if ((e.ctrlKey || e.metaKey) && key === 'KeyU') applyTag('u');
-        if ((e.ctrlKey || e.metaKey) && key === 'KeyA') applyTag('a');
+        if ((e.ctrlKey || e.metaKey) && key === 'KeyK') applyTag('a');
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'KeyX') applyTag('strike');
         if ((e.ctrlKey || e.metaKey) && key === 'Enter') handleAnswer();
     };
@@ -422,10 +421,10 @@ export default function CreateCommentComponent(props: CreateCommentProps) {
                         <button disabled={disabledButtons} onClick={() => applyTag('spoiler')} title="Спойлер"><SpoilerIcon /></button></div>
                     <div className={styles.control}>
                         <button disabled={disabledButtons} onClick={() => applyTag('expand', {'title':''})} title="Свернуть/Развернуть"><ExpandIcon /></button></div>
-                    {parentPublicKey &&
-                    <div className={styles.control}>
-                        <button disabled={disabledButtons} onClick={() => setFormOpen(true)} title="Шифрованное послание"><MailIcon /></button></div>
-                    }
+                    {/*{parentPublicKey &&*/}
+                    {/*<div className={styles.control}>*/}
+                    {/*    <button disabled={disabledButtons} onClick={() => setFormOpen(true)} title="Шифрованное послание"><MailIcon /></button></div>*/}
+                    {/*}*/}
                 </SpilloverWrapper>
             </div>
             {

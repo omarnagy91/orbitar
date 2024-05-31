@@ -19,6 +19,8 @@ export type UserProfileResponse = {
     isBarmalini?: boolean;
 
     publicKey: string;
+
+    visitedDaysAgo: number;
 };
 
 export type TrialProgressDebugInfo = {
