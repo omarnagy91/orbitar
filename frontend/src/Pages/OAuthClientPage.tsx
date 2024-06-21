@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite';
 import { useAPI } from '../AppState/AppState';
 import { OAuth2ClientEntity } from '../Types/OAuth2';
 import OAuth2AppCardComponent from '../Components/OAuth2AppCardComponent';
+import Cookies from 'js-cookie';
 
 export const OAuthClientPage = observer(() => {
   const api = useAPI();
@@ -16,10 +17,10 @@ export const OAuthClientPage = observer(() => {
   const redirectUri = urlParams.get('redirect_uri') || '';
   const state = urlParams.get('state') || '';
 
+  const sessionId = Cookies.get('session') || '';
+
   const [error, setError] = React.useState<string | null>(null);
   const [client, setClient] = React.useState<OAuth2ClientEntity | null>(null);
-
-  const [submitting, setSubmitting] = React.useState<boolean>(false);
 
   const validateRedirectUri = (url: string, allowedRedirectUris: string): boolean => {
     const allowedUrls = allowedRedirectUris.split(',').map(u => u.trim());
@@ -39,26 +40,10 @@ export const OAuthClientPage = observer(() => {
     return false;
   };
 
-  const onAccept = () => {
-    setSubmitting(true);
-    // TODO: gather only checked scopes
-    api.oauth2Api.authorizeClient(clientId, scope, redirectUri).then((data) => {
-      window.location.href = redirectUri +
-        '?code=' + encodeURIComponent(data.authorizationCode) +
-        '&state=' + encodeURIComponent(state) +
-        '&redirect_uri=' + encodeURIComponent(redirectUri);
-    }).catch((err) => {
-      setError(err.message);
-    }).finally(() => {
-      setSubmitting(false);
-    });
-  };
-
   const onDecline = () => {
-    window.location.href = '/';
+    window.history.back();
   };
 
-  // todo: handle auth, if user is not logged, redirect to login page and then redirect back to this page with URL params preserved
   useEffect(() => {
     if (!clientId || !scope || !responseType || !redirectUri) {
       setError('Невалидный запрос');
@@ -103,9 +88,10 @@ export const OAuthClientPage = observer(() => {
       <OAuth2AppCardComponent
         client={client}
         scope={scope}
-        onAuthorizeProceed={onAccept}
+        redirectUri={redirectUri}
+        state={state}
+        sessionId={sessionId}
         onAuthorizeDeny={onDecline}
-        submitting={submitting}
       />
     </div>
   );

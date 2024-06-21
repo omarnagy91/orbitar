@@ -8,18 +8,16 @@ import {
   OAuth2ClientsListRequest,
   OAuth2ClientsListResponse,
   OAuth2AuthorizeRequest,
-  OAuth2AuthorizeResponse,
   OAuth2ClientRequest,
   OAuth2ClientResponse,
-  OAuth2TokenRequest, OAuth2TokenResponse,
   OAuth2ClientRegenerateSecretResponse, OAuth2ClientUpdateLogoUrlRequest, OAuth2ClientManageRequest
 } from './types/requests/OAuth2';
 import Joi from 'joi';
 import rateLimit from 'express-rate-limit';
 import UserManager from '../managers/UserManager';
-import { OAuth2ClientEntity } from './types/entities/OAuth2ClientEntity';
-import { OAuth2ClientRaw, OAuth2Token } from '../db/types/OAuth2';
-import TokenService from '../oauth/TokenService';
+import {OAuth2ClientEntity} from './types/entities/OAuth2ClientEntity';
+import {OAuth2ClientRaw} from '../db/types/OAuth2';
+import ExpressOAuthServer from 'express-oauth-server';
 
 const clientRegisterSchema = Joi.object<OAuth2RegisterRequest>({
   name: Joi.string().max(32).required(),
@@ -51,16 +49,6 @@ const clientRegisterSchema = Joi.object<OAuth2RegisterRequest>({
       'any.invalid': 'Please enter valid comma-separated URIs.'
     }),
   isPublic: Joi.boolean().required()
-});
-
-const clientAuthorizeSchema = Joi.object<OAuth2AuthorizeRequest>({
-  clientId: Joi.string().max(255).required(),
-  scope: Joi.string().max(255).required(),
-  redirectUri: Joi.string()
-    .uri({
-      scheme: ['http', 'https']
-    })
-    .max(255).required()
 });
 
 const listClientsSchema = Joi.object<OAuth2ClientsListRequest>({})
@@ -105,11 +93,13 @@ export default class OAuth2Controller {
   private readonly oauth2Manager: OAuth2Manager;
   private readonly userManager: UserManager;
   private readonly logger: Logger;
+  private readonly oauthExpressServer: ExpressOAuthServer;
 
-  constructor(oauth2Manager: OAuth2Manager, userManager: UserManager, logger: Logger) {
+  constructor(oauth2Manager: OAuth2Manager, userManager: UserManager, oauth2ExpressServer: ExpressOAuthServer, logger: Logger) {
     this.oauth2Manager = oauth2Manager;
     this.userManager = userManager;
     this.logger = logger;
+    this.oauthExpressServer = oauth2ExpressServer;
 
     const registerLimiter = rateLimit({
       windowMs: 60 * 60 * 1000,
@@ -127,9 +117,26 @@ export default class OAuth2Controller {
     this.router.post('/oauth2/client/update-logo', validate(updateLogoUrlSchema), (req, res) => this.updateClientLogoUrl(req, res));
     this.router.post('/oauth2/client/delete', validate(clientManageSchema), (req, res) => this.deleteClient(req, res));
     this.router.post('/oauth2/client/change-visibility', validate(clientManageSchema), (req, res) => this.changeClientVisibility(req, res));
-    this.router.post('/oauth2/authorize', validate(clientAuthorizeSchema), (req, res) => this.authorizeClient(req, res));
+    this.router.post('/oauth2/authorize', (req, res) => this.oauthExpressServer.authorize({
+      authenticateHandler: {
+        handle: async (req) => {
+          await req.session.restore(req.body['X-Session-Id']);
+          if (req.session.isBarmalini() && req.session.getAgeMillis() > /*1 hour*/ 60 * 60 * 1000) {
+            await req.session.destroy();
+            return null;
+          }
+
+          if (!req?.session?.data?.userId) {
+            return null;
+          }
+          return {
+            id: req.session.data.userId
+          };
+        }
+      }
+    })(req, res, () => {}));
     this.router.post('/oauth2/unauthorize', validate(clientManageSchema), (req, res) => this.unAuthorizeClient(req, res));
-    this.router.post('/oauth2/token', validate(getTokenSchema), (req, res) => this.generateToken(req, res));
+    this.router.post('/oauth2/token', validate(getTokenSchema), (req, res) => this.oauthExpressServer.token({})(req, res, () => {}));
   }
 
   /**
@@ -193,35 +200,6 @@ export default class OAuth2Controller {
   }
 
   /**
-   * Authorize client by user from a client consent page
-   * Generates authorization code and redirects user to the client's redirect URL which will be able to exchange the code for an access token
-   */
-  async authorizeClient(request: APIRequest<OAuth2AuthorizeRequest>, response: APIResponse<OAuth2AuthorizeResponse>) {
-    if (!request.session.data.userId) {
-      return response.authRequired();
-    }
-
-    const { clientId, scope, redirectUri } = request.body;
-
-    try {
-      const client = await this.oauth2Manager.getClientByClientId(clientId);
-      if (!client) {
-        return response.error('invalid-client', 'Invalid client ID', 400);
-      }
-
-      const authorizationCode = await this.oauth2Manager.authorizeClientAndGetAuthorizationCode(client, request.session.data.userId, scope, redirectUri);
-      if (!authorizationCode) {
-        return response.error('invalid-client', 'Failed to generate authorization code', 500);
-      }
-
-      response.success({ authorizationCode });
-    } catch (err) {
-      this.logger.error('OAuth2 authorize client failed', { error: err });
-      return response.error('error', 'Failed to authorize this client', 500);
-    }
-  }
-
-  /**
    * Get client by client ID to be displayed on the client consent page
    */
   async getClientByClientId(request: APIRequest<OAuth2ClientRequest>, response: APIResponse<OAuth2ClientResponse>) {
@@ -237,41 +215,6 @@ export default class OAuth2Controller {
     }
     response.success({ client });
     return;
-  }
-
-  /**
-   * Generate token by authorization code or refresh token on the grant_type provided by the client
-   */
-  async generateToken(request: APIRequest<OAuth2TokenRequest>, response: APIResponse<OAuth2TokenResponse>) {
-    const { client_id, client_secret, grant_type, code, refresh_token } = request.body;
-    let token: OAuth2Token;
-
-    if (grant_type === 'refresh_token') {
-      token = await this.oauth2Manager.generateTokenUsingRefreshToken(refresh_token);
-      if (!token) {
-        return response.error('error', 'Failed to get new access token', 500);
-      }
-      return response.success({ token });
-    }
-
-    const clientSecretHash = TokenService.hashString(client_secret);
-    const client = await this.oauth2Manager.getClientByClientId(client_id, true);
-
-    if (!client || client_id !== client.clientId || clientSecretHash !== client.clientSecretHash) {
-      this.logger.error('Invalid client id or secret', { client_id, client_secret });
-      return response.error('invalid-client', 'Invalid client ID', 400);
-    }
-
-    try {
-      token = await this.oauth2Manager.generateTokenUsingAuthorizationCode(client, grant_type, code);
-      if (!token) {
-        return response.error('invalid-client', 'Failed to generate token', 500);
-      }
-      response.success({ token });
-    } catch (err) {
-      this.logger.error('OAuth2 generate token failed', { error: err });
-      return response.error('error', 'Failed to generate token', 500);
-    }
   }
 
   /**

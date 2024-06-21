@@ -5,7 +5,8 @@ function ScopeControl(props: { name: string, description: string, checked: boole
   return (
     <label>
       <input
-        type={'checkbox'} {...(props.checked ? { defaultChecked: true } : {})} {...(props.name === 'openid' ? { disabled: true } : {})}
+        disabled={true}
+        type={'checkbox'} {...(props.checked ? { defaultChecked: true } : {})}
         name={props.name}/>
       <span>
         <b>{props.name}</b> - {props.description}

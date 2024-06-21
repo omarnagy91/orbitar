@@ -1,5 +1,5 @@
 import APIBase from './APIBase';
-import { OAuth2ClientEntity } from '../Types/OAuth2';
+import {OAuth2ClientEntity} from '../Types/OAuth2';
 
 export type OAuth2ClientsListRequest = Record<string, never>;
 
@@ -21,9 +21,10 @@ export type OAuth2RegisterResponse = {
 };
 
 export type OAuth2AuthorizeRequest = {
-  clientId: string;
+  client_id: string;
   scope: string;
-  redirectUri: string;
+  redirect_uri: string;
+  response_type: 'code';
 };
 
 export type OAuth2AuthorizeResponse = {
@@ -87,14 +88,6 @@ export default class OAuth2Api {
 
   async getClient(clientId: string): Promise<OAuth2GetClientResponse> {
     return await this.api.request<OAuth2GetClientRequest, OAuth2GetClientResponse>(`/oauth2/client`, { clientId });
-  }
-
-  async authorizeClient(clientId: string, scope: string, redirectUri: string): Promise<OAuth2AuthorizeResponse> {
-    return await this.api.request<OAuth2AuthorizeRequest, OAuth2AuthorizeResponse>('/oauth2/authorize', {
-      clientId,
-      scope,
-      redirectUri: redirectUri
-    });
   }
 
   async unauthorizeClient(id: number): Promise<Record<string, never>> {

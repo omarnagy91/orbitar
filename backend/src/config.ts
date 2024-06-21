@@ -9,6 +9,7 @@ type Config = {
     feed: FeedConfig;
     barmalini: BarmaliniConfig;
     openai: OpenAIConfig;
+    oauth: OAuthConfig;
 };
 
 export type MysqlConfig = {
@@ -55,6 +56,11 @@ export type OpenAIConfig = {
     apiKey: string;
 };
 
+type OAuthConfig = {
+    accessTokenTtlSeconds: number;
+    authorizationCodeTtlSeconds: number;
+};
+
 export const config: Config = {
     port: parseInt(process.env.SERVER_PORT) || 5001,
     logLevel: process.env.LOG_LEVEL || 'info',
@@ -93,5 +99,9 @@ export const config: Config = {
     },
     openai: {
         apiKey: process.env.OPENAI_API_KEY || '',
+    },
+    oauth: {
+        accessTokenTtlSeconds: parseInt(process.env.OAUTH_ACCESS_TOKEN_TTL_SECONDS) || 3600 * 24 * 7,
+        authorizationCodeTtlSeconds: parseInt(process.env.OAUTH_AUTHORIZATION_CODE_TTL_SECONDS) || 300
     }
 };

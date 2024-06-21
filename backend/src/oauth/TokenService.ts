@@ -8,11 +8,10 @@ export default class TokenService {
     return process.env.JWT_SECRET_KEY;
   }
 
-  static generateAccessToken(sub: string, name: string, aud: string, scope: string, exp: number, iat: number, authTime: number): string {
+  static generateAccessToken(sub: string, aud: string, scope: string, exp: number, iat: number, authTime: number): string {
     const payload = {
       iss: process.env.JWT_ISSUER || 'https://orbitar.space',
       sub,
-      name,
       aud,
       exp,
       iat,

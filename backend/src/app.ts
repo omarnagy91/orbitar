@@ -13,7 +13,6 @@ import PostManager from './managers/PostManager';
 import StatusController from './api/StatusController';
 import SiteManager from './managers/SiteManager';
 import {apiMiddleware} from './api/ApiMiddleware';
-import OAuth2Middleware from './api/OAuth2Middleware';
 import VoteController from './api/VoteController';
 import {config} from './config';
 import expressWinston from 'express-winston';
@@ -48,6 +47,9 @@ import {UserCache} from './managers/UserCache';
 import OAuth2Manager from './managers/OAuth2Manager';
 import OAuth2Repository from './db/repositories/OAuth2Repository';
 import OAuth2Controller from './api/OAuth2Controller';
+import OAuthServer from 'express-oauth-server';
+import {AuthorizationCodeModel} from 'oauth2-server';
+import OAuth2Authenticate from './api/OAuth2Middleware';
 
 const app = express();
 
@@ -113,6 +115,13 @@ const webPushRepository = new WebPushRepository(db);
 const translationRepository = new TranslationRepository(db);
 const oauthRepository = new OAuth2Repository(db);
 
+app.oauth = new OAuthServer({
+    model: oauthRepository as unknown as AuthorizationCodeModel,
+    accessTokenLifetime: 60 * 60 * 24 *7,
+    allowEmptyState: true,
+    allowExtendedTokenAttributes: true
+});
+
 const userCache = new UserCache(userRepository);
 const notificationManager = new NotificationManager(commentRepository, notificationsRepository, postRepository, siteRepository, userCache, webPushRepository, config.vapid, config.site, logger.child({ service: 'NOTIFY' }));
 const userManager = new UserManager(credentialsRepository, userRepository, voteRepository, commentRepository, postRepository, webPushRepository,
@@ -128,18 +137,20 @@ const oauth2Manager = new OAuth2Manager(oauthRepository, userManager, logger.chi
 
 const apiEnricher = new Enricher(siteManager, userManager);
 
+const oauthMiddlewareGenerator = OAuth2Authenticate(app, db, logger);
+
 const requests = [
     new AuthController(userManager, logger.child({ service: 'AUTH' })),
-    new InviteController(inviteManager, userManager, apiEnricher, logger.child({ service: 'INVITE' })),
-    new PostController(apiEnricher, postManager, feedManager, siteManager, userManager, translationManager, logger.child({ service: 'POST' })),
-    new StatusController(apiEnricher, siteManager, userManager, logger.child({ service: 'STATUS' })),
-    new VoteController(voteManager, userManager, logger.child({ service: 'VOTE' })),
-    new UserController(apiEnricher, userManager, postManager, voteManager, inviteManager, logger.child({ service: 'USER' })),
-    new FeedController(apiEnricher, feedManager, siteManager, userManager, postManager, logger.child({ service: 'FEED' })),
-    new SiteController(apiEnricher, feedManager, siteManager, userManager, logger.child( { service: 'SITE' })),
-    new NotificationsController(notificationManager, userManager, logger.child({ service: 'NOTIFY' })),
-    new SearchController(userManager, searchManager, logger.child({ service: 'SEARCH' })),
-    new OAuth2Controller(oauth2Manager, userManager, logger.child({ service: 'OAUTH2' }))
+    new InviteController(inviteManager, userManager, apiEnricher, oauthMiddlewareGenerator, logger.child({ service: 'INVITE' })),
+    new PostController(apiEnricher, postManager, feedManager, siteManager, userManager, translationManager, oauthMiddlewareGenerator, logger.child({ service: 'POST' })),
+    new StatusController(apiEnricher, siteManager, userManager, oauthMiddlewareGenerator, logger.child({ service: 'STATUS' })),
+    new VoteController(voteManager, userManager, oauthMiddlewareGenerator, logger.child({ service: 'VOTE' })),
+    new UserController(apiEnricher, userManager, postManager, voteManager, inviteManager, oauthMiddlewareGenerator, logger.child({ service: 'USER' })),
+    new FeedController(apiEnricher, feedManager, siteManager, userManager, postManager, oauthMiddlewareGenerator, logger.child({ service: 'FEED' })),
+    new SiteController(apiEnricher, feedManager, siteManager, userManager, oauthMiddlewareGenerator, logger.child( { service: 'SITE' })),
+    new NotificationsController(notificationManager, userManager, oauthMiddlewareGenerator, logger.child({ service: 'NOTIFY' })),
+    new SearchController(userManager, searchManager, oauthMiddlewareGenerator, logger.child({ service: 'SEARCH' })),
+    new OAuth2Controller(oauth2Manager, userManager, app.oauth, logger.child({ service: 'OAUTH2' }))
 ];
 
 const filterLog = winston.format((info) => {
@@ -174,7 +185,6 @@ app.use(cors({
 }));
 
 app.use(express.urlencoded({ extended: false }));
-app.use(OAuth2Middleware(db, logger, oauth2Manager));
 app.use(session(db, logger));
 app.use(apiMiddleware());
 app.use(express.json());

@@ -9,16 +9,19 @@ import { OAuth2ClientEntity } from '../Types/OAuth2';
 import { confirmAlert } from 'react-confirm-alert';
 import { toast } from 'react-toastify';
 import { useAPI } from '../AppState/AppState';
+import APIBase from '../API/APIBase';
 
 interface OAuthAppCardComponentProps {
   client: OAuth2ClientEntity;
   scope?: string;
+  redirectUri?: string;
+  state?: string;
+  sessionId?: string;
   onAuthorizeProceed?: () => void;
   onAuthorizeDeny?: () => void;
   onClientSecretUpdate?: (newSecret: string) => void;
   onClientUnauthorize?: () => void;
   onClientChangeVisibility?: () => void;
-  submitting?: boolean;
 }
 
 export default function OAuth2AppCardComponent(props: OAuthAppCardComponentProps) {
@@ -104,8 +107,6 @@ export default function OAuth2AppCardComponent(props: OAuthAppCardComponentProps
       <OAuth2ClientLogoComponent url={client.logoUrl} isMy={!!client.isMy} onNewLogo={handleNewLogo} />
     </div>
 
-    {/*TODO: show client id*/}
-
     {client.isMy &&
       <div className={classNames([styles.buttonsContainer, styles.ownerButtons])}>
         <button onClick={handleClientSecretUpdate} className={buttonStyles.linkButton}>обновить секрет</button>
@@ -155,19 +156,25 @@ export default function OAuth2AppCardComponent(props: OAuthAppCardComponentProps
             <OAuth2ScopesComponent appRequests={scope}/>
           </div>
         </div>
-        <div className={styles.buttonsContainer}>
-          <button className={classNames({
+        <form className={styles.buttonsContainer} method='POST' action={APIBase.endpoint + '/oauth2/authorize'}>
+          <input type='hidden' name='scope' value={props.scope}/>
+          <input type='hidden' name='state' value={props.state}/>
+          <input type='hidden' name='client_id' value={props.client.clientId}/>
+          <input type='hidden' name='redirect_uri' value={props.redirectUri}/>
+          <input type='hidden' name='X-Session-Id' value={props.sessionId}/>
+          <input type='hidden' name='response_type' value='code'/>
+
+          <button type='submit' className={classNames({
             [buttonStyles.settingsButton]: true,
             [buttonStyles.positiveButton]: true,
-            [buttonStyles.disabled]: props.submitting,
             [buttonStyles.bigger]: true
-          })} onClick={props.onAuthorizeProceed}>Да, меня это
+          })}>Да, меня это
             устраивает
           </button>
           <button className={classNames([buttonStyles.settingsButton, buttonStyles.cancelButton])}
                   onClick={props.onAuthorizeDeny}>Нет, лучше не надо
           </button>
-        </div>
+        </form>
       </>
     }
   </div>);

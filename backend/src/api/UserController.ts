@@ -32,6 +32,7 @@ import {SuggestUsernameRequest, SuggestUsernameResponse} from './types/requests/
 import {ERROR_CODES} from './utils/error-codes';
 import InviteManager from '../managers/InviteManager';
 import rateLimit from 'express-rate-limit';
+import {OAuth2ScopeEndpointsMap} from './utils/OAuth2-scopes';
 
 export default class UserController {
     public readonly router = Router();
@@ -42,7 +43,7 @@ export default class UserController {
     private readonly logger: Logger;
     private readonly enricher: Enricher;
 
-    constructor(enricher: Enricher, userManager: UserManager, postManager: PostManager, voteManager: VoteManager, inviteManager: InviteManager, logger: Logger) {
+    constructor(enricher: Enricher, userManager: UserManager, postManager: PostManager, voteManager: VoteManager, inviteManager: InviteManager, oauthMiddlewareGenerator, logger: Logger) {
         this.enricher = enricher;
         this.userManager = userManager;
         this.postManager = postManager;
@@ -97,18 +98,18 @@ export default class UserController {
             keyGenerator: (req) => String(req.session.data?.userId)
         });
 
-        this.router.post('/user/profile', validate(profileSchema), (req, res) => this.profile(req, res));
-        this.router.post('/user/posts', userCommentsAndPostsLimiter, validate(postsOrCommentsSchema), (req, res) => this.posts(req, res));
-        this.router.post('/user/comments', userCommentsAndPostsLimiter, validate(postsOrCommentsSchema), (req, res) => this.comments(req, res));
-        this.router.post('/user/karma', validate(profileSchema), (req, res) => this.karma(req, res));
-        this.router.post('/user/clearCache', validate(profileSchema), (req, res) => this.clearCache(req, res));
-        this.router.post('/user/restrictions', validate(profileSchema), (req, res) => this.restrictions(req, res));
-        this.router.post('/user/savebio', settingsSaveLimiter, validate(bioSchema), (req, res) => this.saveBio(req, res));
-        this.router.post('/user/savename', settingsSaveLimiter, validate(nameSchema), (req, res) => this.saveName(req, res));
-        this.router.post('/user/savegender', settingsSaveLimiter, validate(genderSchema), (req, res) => this.saveGender(req, res));
+        this.router.post('/user/profile', oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/profile']}), validate(profileSchema), (req, res) => this.profile(req, res));
+        this.router.post('/user/posts', userCommentsAndPostsLimiter, oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/posts']}), validate(postsOrCommentsSchema), (req, res) => this.posts(req, res));
+        this.router.post('/user/comments', userCommentsAndPostsLimiter, validate(postsOrCommentsSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/comments']}), (req, res) => this.comments(req, res));
+        this.router.post('/user/karma', validate(profileSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/karma']}), (req, res) => this.karma(req, res));
+        this.router.post('/user/clearCache', validate(profileSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/clearCache']}), (req, res) => this.clearCache(req, res));
+        this.router.post('/user/restrictions', validate(profileSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/restrictions']}), (req, res) => this.restrictions(req, res));
+        this.router.post('/user/savebio', settingsSaveLimiter, validate(bioSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/savebio']}), (req, res) => this.saveBio(req, res));
+        this.router.post('/user/savename', settingsSaveLimiter, validate(nameSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/savename']}), (req, res) => this.saveName(req, res));
+        this.router.post('/user/savegender', settingsSaveLimiter, validate(genderSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/savegender']}), (req, res) => this.saveGender(req, res));
         this.router.post('/user/barmalini', settingsSaveLimiter, (req, res) => this.barmaliniPassword(req, res));
-        this.router.post('/user/suggest-username', suggestUsernameLimiter, (req, res) => this.suggestUsername(req, res));
-        this.router.post('/user/save-public-key', settingsSaveLimiter, validate(publicKeySchema), (req, res) => this.savePublicKey(req, res));
+        this.router.post('/user/suggest-username', suggestUsernameLimiter, oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/suggest-username']}), (req, res) => this.suggestUsername(req, res));
+        this.router.post('/user/save-public-key', settingsSaveLimiter, oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/user/save-public-key']}), validate(publicKeySchema), (req, res) => this.savePublicKey(req, res));
     }
 
     async profile(request: APIRequest<UserProfileRequest>, response: APIResponse<UserProfileResponse>) {

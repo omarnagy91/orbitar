@@ -9,6 +9,7 @@ import {VoteListItemEntity} from './types/entities/VoteEntity';
 import UserManager from '../managers/UserManager';
 import rateLimit from 'express-rate-limit';
 import {RateLimiterMemory} from 'rate-limiter-flexible';
+import {OAuth2ScopeEndpointsMap} from './utils/OAuth2-scopes';
 
 export default class VoteController {
     public router = Router();
@@ -36,7 +37,7 @@ export default class VoteController {
         duration: 60 * 60, // Per hour
     });
 
-    constructor(voteManager: VoteManager, userManager: UserManager, logger: Logger) {
+    constructor(voteManager: VoteManager, userManager: UserManager, oauthMiddlewareGenerator, logger: Logger) {
         this.voteManager = voteManager;
         this.userManager = userManager;
         this.logger = logger;
@@ -51,8 +52,8 @@ export default class VoteController {
             id: Joi.number().required()
         });
 
-        this.router.post('/vote/set', this.voteRateLimiter, validate(voteSchema), (req, res) => this.setVote(req, res));
-        this.router.post('/vote/list', validate(listSchema), (req, res) => this.list(req, res));
+        this.router.post('/vote/set', this.voteRateLimiter, validate(voteSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/vote/set']}), (req, res) => this.setVote(req, res));
+        this.router.post('/vote/list', validate(listSchema), oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/vote/list']}), (req, res) => this.list(req, res));
     }
 
     async setVote(request: APIRequest<VoteSetRequest>, response: APIResponse<VoteSetResponse>) {

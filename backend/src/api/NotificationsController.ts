@@ -17,6 +17,7 @@ import UserManager from '../managers/UserManager';
 import {NotificationsSubscribeRequest, NotificationsSubscribeResponse} from './types/requests/NotificationsSubscribe';
 import {NotificationEntity} from './types/entities/NotificationEntity';
 import Joi from 'joi';
+import {OAuth2ScopeEndpointsMap} from './utils/OAuth2-scopes';
 
 const hideAllSchema = Joi.object<NotificationsHideAllRequest>({
     readOnly: Joi.boolean()
@@ -28,17 +29,17 @@ export default class NotificationsController {
     private readonly userManager: UserManager;
     private readonly logger: Logger;
 
-    constructor(notificationManager: NotificationManager, userManager: UserManager, logger) {
+    constructor(notificationManager: NotificationManager, userManager: UserManager, oauthMiddlewareGenerator, logger) {
         this.notificationManager = notificationManager;
         this.userManager = userManager;
 
         this.logger = logger;
-        this.router.post('/notifications/list', (req, res) => this.list(req, res));
-        this.router.post('/notifications/read', (req, res) => this.read(req, res));
-        this.router.post('/notifications/hide', (req, res) => this.hide(req, res));
-        this.router.post('/notifications/read/all', (req, res) => this.readAll(req, res));
-        this.router.post('/notifications/hide/all', validate(hideAllSchema), (req, res) => this.hideAll(req, res));
-        this.router.post('/notifications/subscribe', (req, res) => this.subscribe(req, res));
+        this.router.post('/notifications/list', oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/notifications/list']}), (req, res) => this.list(req, res));
+        this.router.post('/notifications/read', oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/notifications/read']}), (req, res) => this.read(req, res));
+        this.router.post('/notifications/hide', oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/notifications/hide']}), (req, res) => this.hide(req, res));
+        this.router.post('/notifications/read/all', oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/notifications/read/all']}), (req, res) => this.readAll(req, res));
+        this.router.post('/notifications/hide/all', oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/notifications/hide/all']}), validate(hideAllSchema), (req, res) => this.hideAll(req, res));
+        this.router.post('/notifications/subscribe', oauthMiddlewareGenerator({scope: OAuth2ScopeEndpointsMap['/notifications/subscribe']}), (req, res) => this.subscribe(req, res));
     }
 
     async list(request: APIRequest<NotificationsListRequest>, response: APIResponse<NotificationsListResponse>) {
