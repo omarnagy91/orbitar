@@ -7,7 +7,6 @@ import {
   OAuth2RegisterResponse,
   OAuth2ClientsListRequest,
   OAuth2ClientsListResponse,
-  OAuth2AuthorizeRequest,
   OAuth2ClientRequest,
   OAuth2ClientResponse,
   OAuth2ClientRegenerateSecretResponse, OAuth2ClientUpdateLogoUrlRequest, OAuth2ClientManageRequest

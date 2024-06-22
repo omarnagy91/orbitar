@@ -19,7 +19,7 @@ export type OAuth2ClientEntity = {
 
 export const OAuth2ScopesLabels: { [key: string]: string; } = {
   'openid': 'ID пользователя',
-  'feed': 'все виды фидов',
+  'feed': 'все действия с фидами',
   'feed:all': 'фид /all',
   'feed:posts': 'фид постов',
   'feed:sorting': 'изменение сортировки фидов',
